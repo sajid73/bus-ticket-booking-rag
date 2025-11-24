@@ -21,18 +21,15 @@ def api_request(method: str, endpoint: str, data: Optional[Dict[str, Any]] = Non
             response = requests.get(ALL_ROUTES_ENDPOINT, params=params, timeout=timeout)
         elif method == 'POST':
             response = requests.post(ALL_ROUTES_ENDPOINT, json=data, timeout=timeout)
-        else:  # DELETE
+        else:
             response = requests.delete(ALL_ROUTES_ENDPOINT, timeout=timeout)
 
-        # Raise for HTTP error statuses (4xx/5xx)
         response.raise_for_status()
 
-        # Try to return JSON, otherwise return plain text
         try:
             return response.json()
         except ValueError:
             return response.text
 
     except requests.exceptions.RequestException:
-        # Let the caller handle UI/reporting; re-raise for clarity
         raise

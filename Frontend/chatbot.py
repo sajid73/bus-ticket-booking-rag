@@ -20,7 +20,6 @@ else:
 
 @st.cache_resource
 def get_chroma_client_and_collection(path: str, collection_name: str):
-    """Initializes the persistent ChromaDB client and collection."""
     try:
         embedding_function = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
         
@@ -37,7 +36,6 @@ def get_chroma_client_and_collection(path: str, collection_name: str):
         return None
 
 def get_rag_answer(user_query: str, collection) -> str:
-    """Performs retrieval and generation."""
     
     results = collection.similarity_search(user_query)
     
@@ -45,8 +43,10 @@ def get_rag_answer(user_query: str, collection) -> str:
     retrieved_context = " ".join(results)
     
     prompt = f"""
-    You are a helpful AI assistant. Use the following context to answer the question. 
-    If the answer is not in the context, politely state that you cannot answer.
+    You are an expert bus ticket service assistant. Use ONLY the following retrieved context
+    to answer the user's question about bus provider policies, contact details, or specific
+    rules. If the information is not found in the context, politely state that you cannot
+    answer based on the available provider data.
     
     CONTEXT: {retrieved_context}
     

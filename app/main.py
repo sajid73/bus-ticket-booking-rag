@@ -2,7 +2,7 @@ import os
 from contextlib import contextmanager
 from typing import List
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -86,17 +86,20 @@ def all_routes(db: Session = Depends(get_db)):
     routes = db.query(models.BusRoute).all()
     return routes
 
-@app.get("/api/search_buses/{origin}/{destination}", response_model=List[schemas.BusRoute])
-def search_buses(origin: str, destination: str, db: Session = Depends(get_db)):
-    
-    routes = crud.get_buses_by_route(db, origin=origin, destination=destination)
-    # print(routes)
+@app.get("/api/routes", summary="Search for buses by origin and destination using query parameters")
+def search_buses(request: Request, db: Session = Depends(get_db)):
+    routes = crud.get_buses_by_route(db, request)
     if not routes:
         return []
-    return {
-        "total": len(routes),
-        "routes": routes
-    }
+
+    serialized = []
+    for r in routes:
+        try:
+            serialized.append(schemas.BusRoute.from_orm(r))
+        except Exception:
+            serialized.append(schemas.BusRoute.model_validate(r))
+
+    return serialized
 
 
 @app.post("/api/book_ticket", response_model=schemas.Booking, status_code=status.HTTP_201_CREATED)
@@ -113,7 +116,7 @@ def book_ticket(booking: schemas.BookingCreate, db: Session = Depends(get_db)):
 @app.get("/api/bookings/{phone}", response_model=List[schemas.Booking])
 def view_bookings(phone: str, db: Session = Depends(get_db)):
     bookings = crud.get_bookings_by_phone(db, user_phone=phone)
-    
+    print(bookings)
     # return [schemas.Booking.model_validate(b) for b in bookings]
     return bookings
 

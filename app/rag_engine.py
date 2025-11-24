@@ -2,90 +2,77 @@ import os
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain_google_genai import GoogleGenerativeAI, GoogleGenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from google import genai
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-from typing import List
+from dotenv import load_dotenv
 from langchain_core.documents import Document
 
-PERSIST_DIRECTORY = "chroma_db"
-DATA_DIR = "../data/attachments"
-COLLECTION_NAME = "bus_policy_info"
+load_dotenv()
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+CHROMA_DB_PATH = "../data/bus_db" 
+COLLECTION_NAME = "bus_infomation"
 
 
-if not os.environ.get("GEMINI_API_KEY"):
-    print("WARNING: GEMINI_API_KEY environment variable is not set. RAG will fail.")
-    os.environ["GEMINI_API_KEY"] = "DUMMY_KEY_FOR_SETUP" 
-
-try:
-    EMBEDDING_MODEL = GoogleGenAIEmbeddings(model="text-embedding-004")
-    LLM = GoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
-except Exception as e:
-    print(f"Error initializing Gemini models: {e}")
-    EMBEDDING_MODEL = None
-    LLM = None
-
-
-def get_vector_store():
-    """Initializes the ChromaDB Vector Store."""
-    if EMBEDDING_MODEL is None:
-        raise ConnectionError("Embedding model failed to initialize. Cannot access vector store.")
-        
-    return Chroma(
-        collection_name=COLLECTION_NAME,
-        embedding_function=EMBEDDING_MODEL,
-        persist_directory=PERSIST_DIRECTORY
-    )
-
-def create_vector_store():
-    """Loads documents, splits them, and creates/updates the ChromaDB Vector Store."""
-    if os.path.exists(PERSIST_DIRECTORY):
-        print("✅ Vector store directory exists. Assuming policies are ingested.")
-        
-        try:
-             store = get_vector_store()
-             if store._collection.count() > 0:
-                 print(f"✅ ChromaDB collection '{COLLECTION_NAME}' loaded with {store._collection.count()} documents.")
-                 return
-        except Exception:
-             print("⚠️ Could not load existing vector store. Re-ingesting...")
-
-    print("--- Starting RAG Ingestion Pipeline ---")
-    
-    
-    loader = DirectoryLoader(
-        DATA_DIR, 
-        glob="*.txt", 
-        loader_cls=TextLoader, 
-        loader_kwargs={'encoding': 'utf8'}
-    )
-    try:
-        documents: List[Document] = loader.load()
-    except FileNotFoundError:
-        print(f"⚠️ Policy file directory not found at {DATA_DIR}. RAG will not function.")
+def check_gemini_key():
+    if GEMINI_API_KEY:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        LLM_MODEL = 'gemini-2.5-flash'
+        return client, LLM_MODEL
+    else:
         return
+
+def get_chroma_client_and_collection(path: str, collection_name: str):
+    try:
+        embedding_function = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
         
-    print(f"Loaded {len(documents)} policy documents.")
+        collection = Chroma(
+            collection_name,
+            embedding_function=embedding_function,
+            persist_directory=path
+        )
+        return collection
+        
+    except Exception as e:
+        # st.error(f"Error loading ChromaDB collection: {e}")
+        # st.info(f"Make sure the directory '{path}' and collection '{collection_name}' exist.")
+        return None
 
+
+def get_rag_answer(user_query: str, collection) -> str:
     
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=512, 
-        chunk_overlap=50
+    results = collection.similarity_search(
+        user_query,
     )
-    docs = text_splitter.split_documents(documents)
-    print(f"Split documents into {len(docs)} chunks.")
-
     
-    Chroma.from_documents(
-        documents=docs,
-        embedding=EMBEDDING_MODEL,
-        persist_directory=PERSIST_DIRECTORY,
-        collection_name=COLLECTION_NAME
-    )
-    print("--- RAG Ingestion Complete. Vector Store Ready. ---")
-
-
-
+    results = [doc.page_content for doc in results]
+    retrieved_context = " ".join(results)
+    
+    prompt = f"""
+    You are an expert bus ticket service assistant. Use ONLY the following retrieved context
+    to answer the user's question about bus provider policies, contact details, or specific
+    rules. If the information is not found in the context, politely state that you cannot
+    answer based on the available provider data.
+    
+    CONTEXT: {retrieved_context}
+    
+    QUESTION: {user_query}
+    
+    ANSWER:
+    """
+    
+    try:
+        client, LLM_MODEL = check_gemini_key()
+        response = client.models.generate_content(
+            model=LLM_MODEL,
+            contents=prompt
+        )
+        return response.text
+    except Exception as e:
+        return f"An error occurred during generation: {e}"
 
 def get_rag_chain():
     """Defines the RAG execution chain using LangChain."""
@@ -111,7 +98,7 @@ def get_rag_chain():
     rag_chain = (
         {"context": retriever, "question": RunnablePassthrough()} 
         | prompt
-        | LLM
+        | LLM_MODEL
         | str 
     )
     return rag_chain

@@ -22,5 +22,5 @@ langchain-google-genai
 google-genai
 sentence-transformers
 
-# python-magic on Linux/Mac
+# python-magic # for Linux/Mac
 python-magic-bin
