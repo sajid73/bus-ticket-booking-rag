@@ -8,11 +8,18 @@ psycopg2-binary
 
 chromadb
 
+streamlit
+
+unstructured
 langchain
-langchain-core
-langchain-community
+langchain_core
+langchain_community
 langchain-chroma
 langchain_openai
+langchain[google-genai]
 langgraph
 langchain-google-genai
 sentence-transformers
+
+# python-magic on Linux/Mac
+python-magic-bin
