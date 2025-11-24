@@ -19,6 +19,7 @@ langchain_openai
 langchain[google-genai]
 langgraph
 langchain-google-genai
+google-genai
 sentence-transformers
 
 # python-magic on Linux/Mac
