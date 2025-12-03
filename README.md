@@ -1,6 +1,6 @@
-# Bus Ticketing (Assignment-AI Intern)
+# Bus Ticketing Helper
 
-This repository implements a simple bus ticket booking system with a FastAPI backend, a Streamlit frontend demo, and a Retrieval-Augmented-Generation (RAG) helper for bus provider & policy lookup. It is intended for an assignment demo — you can run the backend locally (or in Docker), load the example routes dataset, and try bookings from the Streamlit UI.
+This repository implements a simple bus ticket booking system with a FastAPI backend, a Streamlit frontend demo, and a Retrieval-Augmented-Generation (RAG) helper for bus provider & policy lookup.
 
 Key components
 - Backend: FastAPI + SQLAlchemy (app code in `app/`).
@@ -13,7 +13,7 @@ Prerequisites
 - Git
 - A virtualenv tool (venv/virtualenv) for isolating Python dependencies
 
-Quick start (recommended — Docker for DB, venv for Python)
+Quick start
 
 1. Clone the repository
 
